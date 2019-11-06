@@ -1,5 +1,4 @@
-import merosystem
-import tty
+import merosystem, asmwrapper, irq, ../../console
 
 proc scanCodeToAscii(scancode: uint8):char =
   case scancode
@@ -35,48 +34,39 @@ proc scanCodeToAscii(scancode: uint8):char =
 proc keyboardHandler*(regs: ptr registers) {.exportc.}=
   #A neat little keyboard thing
   #terminalWrite("Got a keyboard interrupt\n")
+  consoleWriteNl("keyboard2")
   var scancode: uint8 = inb(0x60)
 
   if (scancode and 0x80) != 0:
-    discard
     #Got a keyrelease
-    #terminalWrite("Got scancode release: ")
-    #terminalWriteDecimal(scancode xor 0x80)
-    #terminalWrite("\n")
-    #terminalWrite("Scancode equates to: ")
-    #let character: char = scanCodeToAscii(scancode xor 0x80)
-    #if ord(character) != 0:
-    #  terminalPutChar(character)
-    #else:
-    #  terminalWrite("Unrecognized scancode...")
-    #terminalWrite("\n")
+    let character: char = scanCodeToAscii(scancode xor 0x80)
+    if ord(character) != 0:
+      consoleWriteNl($character)
+    else:
+      consoleWriteNl("Unrecognized scancode...")
   else:
-    #terminalWrite("Got scancode push: ")
-    #terminalWriteDecimal(scancode)
-    #terminalWrite("\n")
-    #terminalWrite("Scancode equates to: ")
     let character: char = scanCodeToAscii(scancode)
     if ord(character) != 0:
-      terminalPutChar(character)
+      consoleWriteNl($character)
     else:
-      terminalWrite("GOT DEBUG SIGNAL!!!\n")
-      terminalWriteDecimal(1 div 0)
-      terminalWrite("Unrecognized scancode...")
-    #terminalWrite("\n")
-
-proc keyboardInstall*() =
+      consoleWriteNl("GOT DEBUG SIGNAL!")
+      consoleWrite("Unrecognized scancode...")
+    
+proc keyboardInstall* {.exportc.} =
   #Install they keyboard handler on irq1
-  {.emit: """
-	installHandler(((unsigned int) 1), `keyboardHandler`);
-  """}
+  #  {.emit: """
+  # installHandler(((unsigned int) 1), `keyboardHandler`);
+  #  """}
 
-  discard """
-  Why not just do this? It seems simpler, after all.
+  # discard """
+  # Why not just do this? It seems simpler, after all.
 
+  # installHandler(1, keyboardHandler)
+  
+  # Well, enter one of my 'favorite' parts of working on this: compiler bugs
+  # https://github.com/nim-lang/Nim/issues/3708
+  # """
   installHandler(1, keyboardHandler)
-
-  Well, enter one of my 'favorite' parts of working on this: compiler bugs
-  https://github.com/nim-lang/Nim/issues/3708
-  """
-
-  terminalWrite("Keyboard handler installed...\n")
+  consoleWriteNl("keyboard")
+  # terminalWrite("Keyboard handler installed...\n")
+  

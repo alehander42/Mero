@@ -1,7 +1,7 @@
-import merosystem, tty
+import merosystem, idt
 
 #cstrings for now because nim strings are apparently a pain
-var exceptionMessages {.noinit.}: array[0..31, cstring]
+var exceptionMessages* {.noinit.}: array[0..31, string]
 
 {.emit: """
 extern void isr0();
@@ -141,7 +141,7 @@ proc getIsr(i: int): uint32 =
 
 #TODO: Write copyString or genericAssign
 
-proc isrsInstall*() =
+proc isrsInstall* {.exportc.} =
   for i in 0..31:
     idtSetGate(cast[uint8](i), getIsr(i), 0x08, 0x8E)
   exceptionMessages[0] = "Division by zero!\0"
@@ -177,18 +177,3 @@ proc isrsInstall*() =
   exceptionMessages[30] = "Reserved!\0"
   exceptionMessages[31] = "Reserved!\0"
 
-proc fault_handler(regs: ptr registers){.exportc.} =
-  #Handle isr
-
-  #If it's an exception...
-  if regs.int_no < 32:
-    #Halt and notify the user
-    terminalWrite("\n================================================================================")
-    terminalWrite("Got exception ")
-    terminalWriteDecimal(regs.int_no)
-    terminalWrite(": ")
-    terminalWrite(exceptionMessages[regs.int_no])
-    terminalWrite("\n")
-    terminalWrite("================================================================================")
-    writeRegisters(regs)
-    panic("EXCEPTION!!!!")
